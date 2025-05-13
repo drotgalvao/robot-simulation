@@ -29,26 +29,34 @@ WORKSPACE_LIMITS = {
 
 class UR5Simulator:
     def __init__(self):
-        # Inicializa o PyBullet em modo headless
-        p.connect(p.DIRECT)  # Modo headless (sem GUI) para ambiente Docker
+        # Inicializa o PyBullet em modo GUI
+        p.connect(p.GUI)  # Modo GUI para visualização 3D
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)  # Desativa os controles GUI para simplificar a interface
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -9.8)
         
-        # Carrega o plano e um modelo de robô genérico (kuka em vez de UR5)
+        # Carrega o plano
         self.plane_id = p.loadURDF("plane.urdf")
+        
+        # Tenta carregar o modelo UR5 do arquivo local
         try:
-            # Tenta carregar o KUKA (que vem com o PyBullet)
-            self.robot_id = p.loadURDF("kuka_iiwa/model.urdf", [0, 0, 0], useFixedBase=True)
-            print("Modelo KUKA carregado com sucesso")
+            self.robot_id = p.loadURDF("ur5.urdf", [0, 0, 0], useFixedBase=True)
+            print("Modelo UR5 carregado com sucesso")
         except Exception as e:
-            print(f"Erro ao carregar modelo KUKA: {e}")
+            print(f"Erro ao carregar modelo UR5: {e}")
             try:
-                # Tenta carregar o modelo panda como alternativa
-                self.robot_id = p.loadURDF("franka_panda/panda.urdf", [0, 0, 0], useFixedBase=True)
-                print("Modelo Panda carregado com sucesso")
+                # Tenta carregar o KUKA como alternativa
+                self.robot_id = p.loadURDF("kuka_iiwa/model.urdf", [0, 0, 0], useFixedBase=True)
+                print("Modelo KUKA carregado com sucesso (fallback)")
             except Exception as e2:
-                print(f"Erro ao carregar modelo Panda: {e2}")
-                raise RuntimeError("Não foi possível carregar nenhum modelo de robô")
+                print(f"Erro ao carregar modelo KUKA: {e2}")
+                try:
+                    # Tenta carregar o Panda como segunda alternativa
+                    self.robot_id = p.loadURDF("franka_panda/panda.urdf", [0, 0, 0], useFixedBase=True)
+                    print("Modelo Panda carregado com sucesso (fallback)")
+                except Exception as e3:
+                    print(f"Erro ao carregar modelo Panda: {e3}")
+                    raise RuntimeError("Não foi possível carregar nenhum modelo de robô")
         
         # Obtém informações sobre as juntas do robô
         self.num_joints = p.getNumJoints(self.robot_id)
