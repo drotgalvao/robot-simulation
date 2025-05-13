@@ -1,0 +1,81 @@
+version: '3'
+
+services:
+  robot:
+    build: ./robot
+    container_name: ur5_simulator
+    volumes:
+      - ./robot:/app
+    environment:
+      - MQTT_HOST=mqtt
+      - MQTT_PORT=1883
+    ports:
+      - "8000:8000"  # Porta para visualização do PyBullet se necessário
+    depends_on:
+      - mqtt
+    restart: unless-stopped
+    networks:
+      - robot-network
+
+  nodered:
+    image: nodered/node-red:latest
+    container_name: ur5_supervisor
+    user: "0"  # Execute como root para instalar módulos
+    volumes:
+      - ./nodered:/data
+      - ./nodered/install-modules.sh:/data/install-modules.sh
+    ports:
+      - "1880:1880"  # Interface web do Node-RED
+      - "1881:1881"  # Dashboard
+    environment:
+      - MQTT_HOST=mqtt
+      - MQTT_PORT=1883
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=robotdb
+      - POSTGRES_USER=robotuser
+      - POSTGRES_PASSWORD=robotpass
+      - NODE_RED_ENABLE_PROJECTS=false
+    entrypoint: >
+      sh -c "chmod +x /data/install-modules.sh && 
+             /data/install-modules.sh && 
+             npm start -- --userDir /data"
+    depends_on:
+      - mqtt
+      - postgres
+    restart: unless-stopped
+    networks:
+      - robot-network
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    container_name: ur5_mqtt
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mqtt/data:/mosquitto/data
+      - ./mqtt/log:/mosquitto/log
+    ports:
+      - "1883:1883"  # MQTT
+      - "9001:9001"  # MQTT websockets
+    restart: unless-stopped
+    networks:
+      - robot-network
+
+  postgres:
+    image: postgres:14
+    container_name: ur5_database
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_DB=robotdb
+      - POSTGRES_USER=robotuser
+      - POSTGRES_PASSWORD=robotpass
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - robot-network
+
+networks:
+  robot-network:
+    driver: bridge 

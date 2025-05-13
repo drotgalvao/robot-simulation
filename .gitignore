@@ -1,0 +1,9 @@
+nodered/node_modules
+node_modules
+nodered/.npm
+
+
+postgres/data
+
+
+mqtt/log
