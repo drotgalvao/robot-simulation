@@ -6,11 +6,14 @@ services:
     container_name: ur5_simulator
     volumes:
       - ./robot:/app
+      - /tmp/.X11-unix:/tmp/.X11-unix  # Mapeia socket X11
     environment:
       - MQTT_HOST=mqtt
       - MQTT_PORT=1883
+      - DISPLAY=:1  # Display X11 para visualização
     ports:
-      - "8000:8000"  # Porta para visualização do PyBullet se necessário
+      - "8000:8000"  # Porta para visualização do PyBullet
+      - "6080:80"    # Porta para VNC
     depends_on:
       - mqtt
     restart: unless-stopped

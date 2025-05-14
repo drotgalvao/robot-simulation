@@ -19,12 +19,12 @@ MQTT_TOPIC_RESPONSE = "robot/response"
 
 # Limites do espaço de trabalho do robô
 WORKSPACE_LIMITS = {
-    "x_min": float(os.getenv("ROBOT_WORKSPACE_LIMITS_X_MIN", -0.6)),
-    "x_max": float(os.getenv("ROBOT_WORKSPACE_LIMITS_X_MAX", 0.6)),
-    "y_min": float(os.getenv("ROBOT_WORKSPACE_LIMITS_Y_MIN", -0.6)),
-    "y_max": float(os.getenv("ROBOT_WORKSPACE_LIMITS_Y_MAX", 0.6)),
+    "x_min": float(os.getenv("ROBOT_WORKSPACE_LIMITS_X_MIN", -1.0)),
+    "x_max": float(os.getenv("ROBOT_WORKSPACE_LIMITS_X_MAX", 1.0)),
+    "y_min": float(os.getenv("ROBOT_WORKSPACE_LIMITS_Y_MIN", -1.0)),
+    "y_max": float(os.getenv("ROBOT_WORKSPACE_LIMITS_Y_MAX", 1.0)),
     "z_min": float(os.getenv("ROBOT_WORKSPACE_LIMITS_Z_MIN", 0.0)),
-    "z_max": float(os.getenv("ROBOT_WORKSPACE_LIMITS_Z_MAX", 0.6))
+    "z_max": float(os.getenv("ROBOT_WORKSPACE_LIMITS_Z_MAX", 1.0))
 }
 
 class UR5Simulator:
@@ -101,13 +101,15 @@ class UR5Simulator:
         
     def on_connect(self, client, userdata, flags, rc):
         print(f"Conectado ao broker MQTT com código de resultado {rc}")
-        self.mqtt_client.subscribe(MQTT_TOPIC_COMMAND)
-        self.mqtt_client.subscribe(MQTT_TOPIC_RESPONSE)
+        print(f"Inscrevendo-se nos tópicos: {MQTT_TOPIC_COMMAND} e {MQTT_TOPIC_RESPONSE}")
+        self.mqtt_client.subscribe([(MQTT_TOPIC_COMMAND, 0), (MQTT_TOPIC_RESPONSE, 0)])
         
         # Envia status inicial
         self.publish_status("iniciado", "Simulador do robô iniciado")
+        print(f"Status inicial publicado no tópico {MQTT_TOPIC_STATUS}")
         
     def on_message(self, client, userdata, msg):
+        print(f"MENSAGEM RECEBIDA no tópico {msg.topic}: {msg.payload}")
         try:
             message = json.loads(msg.payload)
             print(f"Mensagem recebida no tópico {msg.topic}: {message}")
@@ -115,9 +117,13 @@ class UR5Simulator:
             if msg.topic == MQTT_TOPIC_COMMAND:
                 if "command" in message and message["command"] == "move":
                     if "x" in message and "y" in message and "z" in message:
+                        print(f"Processando comando de movimento para coordenadas: x={message['x']}, y={message['y']}, z={message['z']}")
                         self.execute_movement(message["x"], message["y"], message["z"])
                     else:
+                        print(f"Comando de movimento incompleto: {message}")
                         self.publish_status("erro", "Comando de movimento incompleto")
+                else:
+                    print(f"Comando desconhecido ou formato inválido: {message}")
                         
             elif msg.topic == MQTT_TOPIC_RESPONSE:
                 if "response" in message:
@@ -126,17 +132,27 @@ class UR5Simulator:
                     elif message["response"] == "rejected":
                         print("Movimento rejeitado pelo supervisor")
                         self.publish_status("rejeitado", "Movimento rejeitado pelo supervisor")
+                else:
+                    print(f"Resposta inválida: {message}")
                         
         except json.JSONDecodeError:
             print(f"Erro ao decodificar JSON: {msg.payload}")
         except Exception as e:
             print(f"Erro ao processar mensagem: {e}")
+            import traceback
+            traceback.print_exc()
     
     def is_position_valid(self, x, y, z):
-        if (x < WORKSPACE_LIMITS["x_min"] or x > WORKSPACE_LIMITS["x_max"] or
-            y < WORKSPACE_LIMITS["y_min"] or y > WORKSPACE_LIMITS["y_max"] or
-            z < WORKSPACE_LIMITS["z_min"] or z > WORKSPACE_LIMITS["z_max"]):
+        if x < WORKSPACE_LIMITS["x_min"] or x > WORKSPACE_LIMITS["x_max"]:
+            print(f"Posição X={x} está fora dos limites ({WORKSPACE_LIMITS['x_min']} a {WORKSPACE_LIMITS['x_max']})")
             return False
+        if y < WORKSPACE_LIMITS["y_min"] or y > WORKSPACE_LIMITS["y_max"]:
+            print(f"Posição Y={y} está fora dos limites ({WORKSPACE_LIMITS['y_min']} a {WORKSPACE_LIMITS['y_max']})")
+            return False
+        if z < WORKSPACE_LIMITS["z_min"] or z > WORKSPACE_LIMITS["z_max"]:
+            print(f"Posição Z={z} está fora dos limites ({WORKSPACE_LIMITS['z_min']} a {WORKSPACE_LIMITS['z_max']})")
+            return False
+        print(f"Posição ({x}, {y}, {z}) está dentro dos limites de trabalho")
         return True
     
     def execute_movement(self, x, y, z):
@@ -189,13 +205,25 @@ class UR5Simulator:
             "message": message,
             "timestamp": time.time()
         }
-        self.mqtt_client.publish(MQTT_TOPIC_STATUS, json.dumps(payload))
+        print(f"Publicando status no tópico {MQTT_TOPIC_STATUS}: {payload}")
+        result = self.mqtt_client.publish(MQTT_TOPIC_STATUS, json.dumps(payload))
+        print(f"Resultado da publicação: {result}")
         print(f"Status publicado: {payload}")
         
     def run(self):
+        status_interval = 5.0  # Intervalo em segundos para publicar status
+        last_status_time = 0.0
+        
         try:
             while True:
                 p.stepSimulation()
+                
+                # Publica status periodicamente
+                current_time = time.time()
+                if current_time - last_status_time >= status_interval:
+                    self.publish_status("ativo", "Simulador em execução")
+                    last_status_time = current_time
+                    
                 time.sleep(0.1)  # Reduzido para economizar CPU no modo headless
         except KeyboardInterrupt:
             print("Simulação interrompida pelo usuário")
