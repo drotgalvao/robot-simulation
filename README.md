@@ -14,7 +14,7 @@ O projeto está estruturado nos seguintes componentes:
 ## Requisitos
 
 - Docker e Docker Compose
-- Acesso à porta 8000 (visualização PyBullet)
+- Acesso à porta 6080 (VNC)
 - Acesso à porta 1880 (Node-RED)
 - Acesso à porta 1881 (Dashboard)
 - Acesso à porta 1883 (MQTT)
@@ -24,7 +24,7 @@ O projeto está estruturado nos seguintes componentes:
 
 1. Clone o repositório:
    ```bash
-   git clone https://seu-repositorio/robot-simulation.git
+   git clone https://github.com/drotgalvao/robot-simulation.git
    cd robot-simulation
    ```
 
@@ -34,9 +34,9 @@ O projeto está estruturado nos seguintes componentes:
    ```
 
 3. Acesse as interfaces:
-   - **Simulação do robô**: Visualização pelo PyBullet (porta 8000)
+   - **Simulação do robô**: Visualização pelo VNC (porta 6080)
    - **Interface de supervisão**: http://localhost:1880
-   - **Dashboard de controle**: http://localhost:1881/ui
+   - **Dashboard de controle**: http://localhost:1880/ui
 
 ## Comunicação entre Componentes
 
@@ -60,14 +60,10 @@ O projeto está estruturado nos seguintes componentes:
 ## Limitações do Espaço de Trabalho
 
 ```
-X: -0.6 a 0.6 metros
-Y: -0.6 a 0.6 metros
-Z: 0.0 a 0.6 metros
+X: -1.0 a 1.0 metros
+Y: -1.0 a 1.0 metros
+Z: 0.0 a 1.0 metros
 ```
-
-## Contribuição
-
-Para contribuir com o projeto, por favor siga as práticas de desenvolvimento e teste antes de enviar pull requests.
 
 ## Licença
 
