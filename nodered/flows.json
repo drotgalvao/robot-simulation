@@ -192,7 +192,7 @@
         "type": "function",
         "z": "5b2daf24.2cb68",
         "name": "Preparar Comando",
-        "func": "// Cria o comando para o robô\nmsg.payload = {\n    command: \"move\",\n    x: parseFloat(msg.payload.x),\n    y: parseFloat(msg.payload.y),\n    z: parseFloat(msg.payload.z)\n};\n\n// Prepara para o banco de dados\nconst dbMsg = {\n    topic: \"INSERT INTO robot_commands (command, position_x, position_y, position_z) VALUES ($1, $2, $3, $4)\",\n    params: [\"move\", msg.payload.x, msg.payload.y, msg.payload.z]\n};\n\n// Verifica se a posição é válida\nconst limits = {\n    x_min: -1.0,\n    x_max: 1.0,\n    y_min: -1.0,\n    y_max: 1.0,\n    z_min: 0.0,\n    z_max: 1.0\n};\n\nlet isValid = true;\nlet reason = \"\";\n\nif (msg.payload.x < limits.x_min || msg.payload.x > limits.x_max) {\n    isValid = false;\n    reason = `Valor de X (${msg.payload.x}) fora dos limites permitidos`;\n} else if (msg.payload.y < limits.y_min || msg.payload.y > limits.y_max) {\n    isValid = false;\n    reason = `Valor de Y (${msg.payload.y}) fora dos limites permitidos`;\n} else if (msg.payload.z < limits.z_min || msg.payload.z > limits.z_max) {\n    isValid = false;\n    reason = `Valor de Z (${msg.payload.z}) fora dos limites permitidos`;\n}\n\nreturn [msg, dbMsg, { payload: { isValid, reason } }];",
+        "func": "// Cria o comando para o robô\nconst comandoRobo = {\n    command: \"move\",\n    x: parseFloat(msg.payload.x),\n    y: parseFloat(msg.payload.y),\n    z: parseFloat(msg.payload.z)\n};\n\n// Prepara para o banco de dados\nconst dbMsg = {\n    topic: \"INSERT INTO robot_commands (command, position_x, position_y, position_z) VALUES ($1, $2, $3, $4)\",\n    params: [\"move\", parseFloat(msg.payload.x), parseFloat(msg.payload.y), parseFloat(msg.payload.z)]\n};\n\n// Verifica se a posição é válida\nconst limits = {\n    x_min: -1.0,\n    x_max: 1.0,\n    y_min: -1.0,\n    y_max: 1.0,\n    z_min: 0.0,\n    z_max: 1.0\n};\n\nlet isValid = true;\nlet reason = \"\";\n\nif (comandoRobo.x < limits.x_min || comandoRobo.x > limits.x_max) {\n    isValid = false;\n    reason = `Valor de X (${comandoRobo.x}) fora dos limites permitidos`;\n} else if (comandoRobo.y < limits.y_min || comandoRobo.y > limits.y_max) {\n    isValid = false;\n    reason = `Valor de Y (${comandoRobo.y}) fora dos limites permitidos`;\n} else if (comandoRobo.z < limits.z_min || comandoRobo.z > limits.z_max) {\n    isValid = false;\n    reason = `Valor de Z (${comandoRobo.z}) fora dos limites permitidos`;\n}\n\n// Mensagem de validação para o nó switch\nconst validationMsg = { payload: { isValid, reason, originalCommand: comandoRobo } };\n\n// Configurando a mensagem para o comando MQTT\nmsg.payload = comandoRobo;\n\nreturn [msg, dbMsg, validationMsg];",
         "outputs": 3,
         "noerr": 0,
         "initialize": "",
@@ -220,8 +220,8 @@
         "tosidebar": true,
         "console": false,
         "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
+        "complete": "true",
+        "targetType": "full",
         "statusVal": "",
         "statusType": "auto",
         "x": 560,
@@ -268,10 +268,28 @@
         "y": 280,
         "wires": [
             [
-                "4f77b798.40f888"
+                "77ae12c4.de534c"
             ],
             [
                 "7e3e1f4c.dfc18"
+            ]
+        ]
+    },
+    {
+        "id": "77ae12c4.de534c",
+        "type": "function",
+        "z": "5b2daf24.2cb68",
+        "name": "Extrair Comando Original",
+        "func": "// Se validado, extrair o comando original\nif (msg.payload.isValid) {\n    msg.payload = msg.payload.originalCommand;\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 730,
+        "y": 260,
+        "wires": [
+            [
+                "4f77b798.40f888"
             ]
         ]
     },
@@ -284,12 +302,30 @@
         "qos": "",
         "retain": "",
         "broker": "f6f2187d.f17ca8",
-        "x": 730,
+        "x": 930,
         "y": 260,
         "wires": []
     },
     {
         "id": "7e3e1f4c.dfc18",
+        "type": "function",
+        "z": "5b2daf24.2cb68",
+        "name": "Preparar Rejeição",
+        "func": "// Formatar mensagem de rejeição\nmsg.payload = {\n    response: \"rejected\",\n    reason: msg.payload.reason,\n    command: msg.payload.originalCommand\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 730,
+        "y": 300,
+        "wires": [
+            [
+                "a4b0c45f.d3e418"
+            ]
+        ]
+    },
+    {
+        "id": "a4b0c45f.d3e418",
         "type": "mqtt out",
         "z": "5b2daf24.2cb68",
         "name": "Rejeitar Comando",
@@ -297,7 +333,7 @@
         "qos": "",
         "retain": "",
         "broker": "f6f2187d.f17ca8",
-        "x": 730,
+        "x": 930,
         "y": 300,
         "wires": []
     },

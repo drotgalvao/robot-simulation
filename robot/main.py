@@ -112,18 +112,21 @@ class UR5Simulator:
         print(f"MENSAGEM RECEBIDA no tópico {msg.topic}: {msg.payload}")
         try:
             message = json.loads(msg.payload)
-            print(f"Mensagem recebida no tópico {msg.topic}: {message}")
+            print(f"Mensagem decodificada: {message}")
             
             if msg.topic == MQTT_TOPIC_COMMAND:
+                print(f"Processando comando no tópico {MQTT_TOPIC_COMMAND}")
                 if "command" in message and message["command"] == "move":
+                    print(f"Comando de movimento detectado")
                     if "x" in message and "y" in message and "z" in message:
                         print(f"Processando comando de movimento para coordenadas: x={message['x']}, y={message['y']}, z={message['z']}")
                         self.execute_movement(message["x"], message["y"], message["z"])
                     else:
-                        print(f"Comando de movimento incompleto: {message}")
+                        print(f"ERRO: Comando de movimento incompleto: {message}")
                         self.publish_status("erro", "Comando de movimento incompleto")
                 else:
-                    print(f"Comando desconhecido ou formato inválido: {message}")
+                    print(f"ERRO: Comando desconhecido ou formato inválido: {message}")
+                    self.publish_status("erro", f"Comando desconhecido ou formato inválido: {message}")
                         
             elif msg.topic == MQTT_TOPIC_RESPONSE:
                 if "response" in message:
@@ -134,6 +137,8 @@ class UR5Simulator:
                         self.publish_status("rejeitado", "Movimento rejeitado pelo supervisor")
                 else:
                     print(f"Resposta inválida: {message}")
+            else:
+                print(f"Tópico desconhecido: {msg.topic}")
                         
         except json.JSONDecodeError:
             print(f"Erro ao decodificar JSON: {msg.payload}")
@@ -163,16 +168,22 @@ class UR5Simulator:
             return
         
         self.publish_status("movendo", f"Iniciando movimento para ({x}, {y}, {z})")
+        print(f"MOVIMENTO: Iniciando movimento para coordenadas ({x}, {y}, {z})")
         
         try:
             self.move_to_position(x, y, z)
             self.current_position = {"x": x, "y": y, "z": z}
+            print(f"MOVIMENTO: Movimento concluído com sucesso para ({x}, {y}, {z})")
             self.publish_status("sucesso", f"Movimento concluído para ({x}, {y}, {z})")
         except Exception as e:
+            print(f"ERRO DE MOVIMENTO: {str(e)}")
             self.publish_status("erro", f"Erro durante movimento: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def move_to_position(self, x, y, z):
         target_position = [x, y, z]
+        print(f"CINEMÁTICA: Calculando cinemática inversa para posição ({x}, {y}, {z})")
         
         # Usa a cinemática inversa para calcular os ângulos das juntas
         target_orientation = p.getQuaternionFromEuler([0, -np.pi, 0])
@@ -183,6 +194,8 @@ class UR5Simulator:
             target_orientation
         )
         
+        print(f"CINEMÁTICA: Posições das juntas calculadas: {joint_positions}")
+        
         # Move as juntas para a posição calculada
         for i, joint_id in enumerate(self.joint_ids):
             p.setJointMotorControl2(
@@ -192,12 +205,18 @@ class UR5Simulator:
                 targetPosition=joint_positions[i],
                 force=500
             )
+            print(f"CINEMÁTICA: Junta {joint_id} movendo para {joint_positions[i]}")
         
         # Aguarda o movimento ser concluído
-        for _ in range(100):  # Simula por alguns passos
+        print(f"CINEMÁTICA: Simulando movimento...")
+        for step in range(100):  # Simula por alguns passos
             p.stepSimulation()
             time.sleep(0.01)
-            
+            if step % 25 == 0:
+                print(f"CINEMÁTICA: Passo de simulação {step}/100...")
+                
+        print(f"CINEMÁTICA: Movimento concluído")
+    
     def publish_status(self, status, message):
         payload = {
             "status": status,
