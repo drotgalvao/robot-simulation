@@ -27,6 +27,7 @@ services:
     volumes:
       - ./nodered:/data
       - ./nodered/install-modules.sh:/data/install-modules.sh
+      - ./nodered/start.sh:/data/start.sh
     ports:
       - "1880:1880"  # Interface web do Node-RED
       - "1881:1881"  # Dashboard
@@ -38,13 +39,13 @@ services:
       - POSTGRES_USER=robotuser
       - POSTGRES_PASSWORD=robotpass
       - NODE_RED_ENABLE_PROJECTS=false
-    entrypoint: >
-      sh -c "chmod +x /data/install-modules.sh && 
-             /data/install-modules.sh && 
-             npm start -- --userDir /data"
+      - TZ=America/Sao_Paulo
+    entrypoint: ["sh", "/data/start.sh"]
     depends_on:
-      - mqtt
-      - postgres
+      postgres:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
     restart: unless-stopped
     networks:
       - robot-network
@@ -76,6 +77,11 @@ services:
     ports:
       - "5432:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U robotuser -d robotdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - robot-network
 

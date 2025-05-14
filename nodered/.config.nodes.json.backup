@@ -467,7 +467,7 @@
     },
     "node-red-contrib-postgresql": {
         "name": "node-red-contrib-postgresql",
-        "version": "0.12.0",
+        "version": "0.15.1",
         "local": true,
         "user": true,
         "nodes": {

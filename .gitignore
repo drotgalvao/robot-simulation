@@ -8,3 +8,5 @@ postgres/data
 
 mqtt/log
 mosquitto.db
+mqtt-to-db.log
+bridge.pid

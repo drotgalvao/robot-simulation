@@ -5,10 +5,11 @@
   "dependencies": {
     "node-red": "^3.0.0",
     "node-red-contrib-mqtt-broker": "^0.2.9",
-    "node-red-contrib-postgresql": "^0.15.1",
+    "node-red-contrib-postgresql": "^0.13.0",
     "node-red-contrib-ui-svg": "^2.3.3",
     "node-red-dashboard": "^3.6.5",
-    "node-red-node-ui-table": "^0.3.12"
+    "node-red-node-ui-table": "^0.4.4",
+    "pg": "^8.11.3"
   },
   "scripts": {
     "start": "node-red -v"
