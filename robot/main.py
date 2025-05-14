@@ -196,24 +196,40 @@ class UR5Simulator:
         
         print(f"CINEMÁTICA: Posições das juntas calculadas: {joint_positions}")
         
-        # Move as juntas para a posição calculada
-        for i, joint_id in enumerate(self.joint_ids):
-            p.setJointMotorControl2(
-                bodyIndex=self.robot_id,
-                jointIndex=joint_id,
-                controlMode=p.POSITION_CONTROL,
-                targetPosition=joint_positions[i],
-                force=500
-            )
-            print(f"CINEMÁTICA: Junta {joint_id} movendo para {joint_positions[i]}")
+        # Obtém as posições atuais das juntas
+        current_joint_positions = []
+        for joint_id in self.joint_ids:
+            joint_state = p.getJointState(self.robot_id, joint_id)
+            current_joint_positions.append(joint_state[0])
         
-        # Aguarda o movimento ser concluído
-        print(f"CINEMÁTICA: Simulando movimento...")
-        for step in range(100):  # Simula por alguns passos
+        # Número maior de passos para movimento mais suave e lento
+        num_steps = 300 
+        step_time = 0.02
+        
+        print(f"CINEMÁTICA: Iniciando movimento lento com {num_steps} passos...")
+        
+        # Movimento gradual das juntas
+        for step in range(num_steps):
+            # Calcular posição intermediária para cada junta (interpolação linear)
+            for i, joint_id in enumerate(self.joint_ids):
+                # Interpola linearmente entre posição atual e alvo
+                t = step / num_steps  # Valor de 0 a 1
+                intermediate_pos = current_joint_positions[i] + t * (joint_positions[i] - current_joint_positions[i])
+                
+                p.setJointMotorControl2(
+                    bodyIndex=self.robot_id,
+                    jointIndex=joint_id,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=intermediate_pos,
+                    maxVelocity=0.5,  # Velocidade máxima reduzida
+                    force=300  # Força reduzida para movimento mais suave
+                )
+            
+            # Simulação e feedback
             p.stepSimulation()
-            time.sleep(0.01)
-            if step % 25 == 0:
-                print(f"CINEMÁTICA: Passo de simulação {step}/100...")
+            time.sleep(step_time)
+            if step % 50 == 0:  # Feedback menos frequente
+                print(f"CINEMÁTICA: Passo de simulação {step}/{num_steps}...")
                 
         print(f"CINEMÁTICA: Movimento concluído")
     
